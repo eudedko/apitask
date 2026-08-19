@@ -1,0 +1,38 @@
+services:
+  mongodb:
+    image: docker.io/library/mongo:8.3
+    restart: unless-stopped
+    volumes:
+      - mongodb-data:/data/db
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "--quiet",
+          "--eval",
+          "quit(db.adminCommand('ping').ok ? 0 : 2)"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  github-proxy:
+    build:
+      context: .
+      dockerfile: Containerfile
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      MONGO_URI: mongodb://mongodb:27017
+      CACHE_TTL_SECONDS: "${CACHE_TTL_SECONDS:-300}"
+      GITHUB_TOKEN: "${GITHUB_TOKEN:-}"
+    ports:
+      - "127.0.0.1:${PROXY_PORT:-3000}:3000"
+
+volumes:
+  mongodb-data:
