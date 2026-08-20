@@ -22,6 +22,7 @@ configMapGenerator:
 patches:
   - path: environment-patch.yaml
   - path: secrets-patch.yaml
+  - path: capacity-patch.yaml
   - target:
       kind: Ingress
       name: github-api-proxy

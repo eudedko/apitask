@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: credentials-rotator
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: credentials-rotator
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [database-credentials]
+    verbs: [patch]
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [github-api-proxy]
+    verbs: [get, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: credentials-rotator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: credentials-rotator
+subjects:
+  - kind: ServiceAccount
+    name: credentials-rotator

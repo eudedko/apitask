@@ -25,12 +25,12 @@ spec:
             - name: MONGO_INITDB_ROOT_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: database-credentials
+                  name: rotator-mongodb-credentials
                   key: username
             - name: MONGO_INITDB_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: database-credentials
+                  name: rotator-mongodb-credentials
                   key: password
           volumeMounts:
             - name: data
@@ -38,14 +38,14 @@ spec:
           readinessProbe:
             exec:
               command:
-                - sh
-                - -c
-                - >-
-                  mongosh --quiet --host 127.0.0.1
-                  --username "$MONGO_INITDB_ROOT_USERNAME"
-                  --password "$MONGO_INITDB_ROOT_PASSWORD"
-                  --authenticationDatabase admin
-                  --eval 'quit(db.adminCommand("ping").ok ? 0 : 2)'
+                - mongosh
+                - --host
+                - localhost
+                - --port
+                - "27017"
+                - --quiet
+                - --eval
+                - quit(db.hello().ok ? 0 : 2)
             initialDelaySeconds: 10
             periodSeconds: 10
           livenessProbe:

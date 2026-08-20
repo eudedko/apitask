@@ -141,3 +141,7 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Rendered kustomize / manifest output
+/json
+k8s/**/rendered.yaml

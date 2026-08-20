@@ -11,6 +11,10 @@ resources:
   - mongodb-pvc.yaml
   - mongodb-service.yaml
   - mongodb-network-policy.yaml
+  - rotator-mongodb-credentials-secret.yaml
+  - rotator-rbac.yaml
+  - rotator-script-configmap.yaml
+  - rotator-cronjob.yaml
 
 configMapGenerator:
   - name: app-config

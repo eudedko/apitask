@@ -33,6 +33,9 @@ const MONGO_URI = process.env.MONGO_URI || createMongoUri();
 const CACHE_TTL_SECONDS = Number(
   process.env.CACHE_TTL_SECONDS || 300
 );
+const SHUTDOWN_TIMEOUT_MS = Number(
+  process.env.SHUTDOWN_TIMEOUT_MS || 20000
+);
 
 const GITHUB_API = "https://api.github.com";
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
@@ -221,7 +224,27 @@ start().catch((error) => {
 
 async function shutdown() {
   if (httpServer) {
-    await new Promise((resolve) => httpServer.close(resolve));
+    await new Promise((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      };
+
+      httpServer.close(finish);
+      // Let idle keep-alive sockets go immediately.
+      httpServer.closeIdleConnections?.();
+
+      // If clients are mid-request, give them a short grace period, then
+      // sever remaining sockets so close() can resolve.
+      setTimeout(() => {
+        httpServer.closeAllConnections?.();
+      }, Math.min(10000, SHUTDOWN_TIMEOUT_MS / 2)).unref();
+
+      // Hard deadline — never let close() hang the process.
+      setTimeout(finish, SHUTDOWN_TIMEOUT_MS).unref();
+    });
   }
   try {
     await mongoClient.close();

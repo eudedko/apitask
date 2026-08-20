@@ -13,6 +13,9 @@ spec:
         - podSelector:
             matchLabels:
               app.kubernetes.io/component: proxy
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: rotator
       ports:
         - protocol: TCP
           port: 27017
