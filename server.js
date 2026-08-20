@@ -7,8 +7,29 @@ const { MongoClient } = require("mongodb");
 const app = express();
 
 const PORT = Number(process.env.PORT || 3000);
-const MONGO_URI =
-  process.env.MONGO_URI || "mongodb://127.0.0.1:27017";
+const MONGO_HOST = process.env.MONGO_HOST || "127.0.0.1";
+const MONGO_PORT = process.env.MONGO_PORT || "27017";
+const MONGO_DATABASE =
+  process.env.MONGO_DATABASE || "github_proxy";
+const DB_USERNAME = process.env.DB_USERNAME;
+const DB_PASSWORD = process.env.DB_PASSWORD;
+
+if (process.env.MONGO_PORT !== undefined) {
+  const parsed = Number(process.env.MONGO_PORT);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
+    throw new Error(
+      `MONGO_PORT must be an integer between 1 and 65535 (got "${process.env.MONGO_PORT}")`
+    );
+  }
+}
+
+if ((DB_USERNAME && !DB_PASSWORD) || (!DB_USERNAME && DB_PASSWORD)) {
+  throw new Error(
+    "DB_USERNAME and DB_PASSWORD must both be set, or both be unset"
+  );
+}
+
+const MONGO_URI = process.env.MONGO_URI || createMongoUri();
 const CACHE_TTL_SECONDS = Number(
   process.env.CACHE_TTL_SECONDS || 300
 );
@@ -18,8 +39,23 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
 const mongoClient = new MongoClient(MONGO_URI);
 let cacheCollection;
+let httpServer;
 
 app.use(cors());
+
+function createMongoUri() {
+  const hasCredentials = DB_USERNAME && DB_PASSWORD;
+  const credentials = hasCredentials
+    ? `${encodeURIComponent(DB_USERNAME)}:${encodeURIComponent(
+        DB_PASSWORD
+      )}@`
+    : "";
+  const authentication = hasCredentials
+    ? "?authSource=admin"
+    : "";
+
+  return `mongodb://${credentials}${MONGO_HOST}:${MONGO_PORT}/${MONGO_DATABASE}${authentication}`;
+}
 
 function createCacheKey(url) {
   // Sort query parameters so differently ordered queries share a cache entry.
@@ -63,6 +99,7 @@ app.get("/", (req, res) => {
 app.use("/github", async (req, res) => {
   // Keep this public proxy read-only.
   if (req.method !== "GET") {
+    res.set("Allow", "GET");
     return res.status(405).json({
       error: "Only GET requests are allowed",
     });
@@ -72,7 +109,8 @@ app.use("/github", async (req, res) => {
    * Because this handler is mounted at /github:
    * /github/users/torvalds?x=1 becomes /users/torvalds?x=1
    */
-  const localUrl = new URL(req.url, "http://proxy.local");
+  const normalizedUrl = req.url.replace(/^\/+/, "/");
+  const localUrl = new URL(normalizedUrl, "http://proxy.local");
   const githubUrl = new URL(GITHUB_API);
 
   githubUrl.pathname = localUrl.pathname;
@@ -161,7 +199,7 @@ app.use("/github", async (req, res) => {
 async function start() {
   await mongoClient.connect();
 
-  const database = mongoClient.db("github_proxy");
+  const database = mongoClient.db(MONGO_DATABASE);
   cacheCollection = database.collection("api_cache");
 
   // MongoDB removes documents after expiresAt has passed.
@@ -170,7 +208,7 @@ async function start() {
     { expireAfterSeconds: 0 }
   );
 
-  app.listen(PORT, () => {
+  httpServer = app.listen(PORT, () => {
     console.log(`Proxy running at http://localhost:${PORT}`);
     console.log(`Cache TTL: ${CACHE_TTL_SECONDS} seconds`);
   });
@@ -182,7 +220,14 @@ start().catch((error) => {
 });
 
 async function shutdown() {
-  await mongoClient.close();
+  if (httpServer) {
+    await new Promise((resolve) => httpServer.close(resolve));
+  }
+  try {
+    await mongoClient.close();
+  } catch (error) {
+    console.error("Error during shutdown:", error.message);
+  }
   process.exit(0);
 }
 

@@ -24,7 +24,8 @@ services:
       dockerfile: Containerfile
     restart: unless-stopped
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       PORT: "3000"

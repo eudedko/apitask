@@ -1,0 +1,100 @@
+{
+  "meta": {
+    "generatedAt": "2026-08-20T07:36:23.698Z",
+    "rangeLabel": "all",
+    "agents": [
+      "codex"
+    ],
+    "projectFilter": "all",
+    "totals": {
+      "sessions": 1,
+      "durationMs": 18130623,
+      "turns": 56,
+      "files": 0,
+      "netLines": 0,
+      "toolCallsTotal": 56,
+      "toolSuccessRate": 96.4,
+      "totalCostUSD": 0,
+      "cacheReadCostUSD": 0,
+      "pricedSessions": 0
+    },
+    "unpricedModels": [],
+    "coverage": [
+      {
+        "agentName": "codex",
+        "total": 1,
+        "priced": 0,
+        "withLog": 0
+      }
+    ],
+    "periodStart": "2026-08-20T02:34:13.014Z",
+    "periodEnd": "2026-08-20T07:36:23.637Z"
+  },
+  "sessions": [
+    {
+      "sessionId": "f7ba3c1a-c75e-4b7b-aa57-f2ee02181d6f",
+      "agentName": "codex",
+      "provider": "ai-run-sso",
+      "title": "",
+      "project": "/home/eugene/apitask",
+      "branch": "main",
+      "startTime": 1787193253014,
+      "durationMs": 18130623,
+      "turns": 56,
+      "fileOps": 0,
+      "linesAdded": 0,
+      "linesRemoved": 0,
+      "linesModified": 0,
+      "netLines": 0,
+      "filesChanged": 0,
+      "filesWritten": 0,
+      "filesEdited": 0,
+      "toolCallsTotal": 56,
+      "toolCallsSuccess": 54,
+      "toolCallsFailure": 2,
+      "models": [
+        "gpt-5.6-sol-2026-07-09"
+      ],
+      "languages": [],
+      "tools": [
+        {
+          "toolName": "exec_command",
+          "totalCalls": 50,
+          "successCount": 48,
+          "failureCount": 2,
+          "successRate": 96
+        },
+        {
+          "toolName": "update_plan",
+          "totalCalls": 3,
+          "successCount": 3,
+          "failureCount": 0,
+          "successRate": 100
+        },
+        {
+          "toolName": "write_stdin",
+          "totalCalls": 3,
+          "successCount": 3,
+          "failureCount": 0,
+          "successRate": 100
+        }
+      ],
+      "tokens": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheCreation": 0,
+        "cacheCreation1h": 0,
+        "total": 0
+      },
+      "costUSD": 0,
+      "cacheReadCostUSD": 0,
+      "perModelCost": [],
+      "hadLog": false,
+      "skillInvocations": [],
+      "agentInvocations": [],
+      "commandInvocations": [],
+      "sessionSource": "Pure chat"
+    }
+  ]
+}

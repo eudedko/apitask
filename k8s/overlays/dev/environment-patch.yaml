@@ -1,0 +1,14 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: github-api-proxy
+spec:
+  template:
+    spec:
+      containers:
+        - name: proxy
+          env:
+            - name: PORT
+              value: "3000"
+            - name: MONGO_DATABASE
+              value: github_proxy_dev

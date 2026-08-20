@@ -1,0 +1,38 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: github-api-proxy-production
+
+resources:
+  - ../../base
+  - namespace.yaml
+
+images:
+  - name: github-api-proxy
+    newName: github-api-proxy
+    newTag: "1.0.0"
+
+configMapGenerator:
+  - name: app-config
+    behavior: merge
+    literals:
+      - NODE_ENV=production
+      - CACHE_TTL_SECONDS=300
+
+patches:
+  - path: environment-patch.yaml
+  - path: secrets-patch.yaml
+  - path: capacity-patch.yaml
+  - target:
+      kind: Ingress
+      name: github-api-proxy
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: api-proxy.example.com
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: api-proxy.example.com
+      - op: replace
+        path: /spec/tls/0/secretName
+        value: github-api-proxy-tls-production
