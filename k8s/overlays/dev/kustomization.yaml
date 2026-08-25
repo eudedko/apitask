@@ -23,19 +23,5 @@ patches:
   - path: environment-patch.yaml
   - path: secrets-patch.yaml
   - path: capacity-patch.yaml
-  - target:
-      kind: Ingress
-      name: github-api-proxy
-    patch: |-
-      - op: replace
-        path: /spec/rules/0/host
-        value: dev.api-proxy.example.com
-      - op: replace
-        path: /spec/tls/0/hosts/0
-        value: dev.api-proxy.example.com
-      - op: replace
-        path: /spec/tls/0/secretName
-        value: github-api-proxy-tls-dev
-      - op: replace
-        path: /metadata/annotations/cert-manager.io~1cluster-issuer
-        value: letsencrypt-staging
+  - path: service-patch.yaml
+  - path: ingress-delete-patch.yaml

@@ -9,6 +9,11 @@ The overlays customize namespaces, images, application ports, database names,
 cache TTLs, proxy replica counts, storage, hosts, and Secret values. MongoDB
 uses port `27017` in every environment.
 
+The `dev` overlay is tuned for **minikube on localhost**: it deletes the base
+`Ingress` and exposes the proxy Service as `NodePort` on port `30300`. Staging
+and production overlays keep the ClusterIP + Ingress shape and still expect an
+ingress controller and (by default) cert-manager.
+
 ## Credential rotation
 
 The `credentials-rotator` CronJob replaces the MongoDB user the proxy
@@ -72,7 +77,48 @@ Apply one installation:
 kubectl apply -k k8s/overlays/dev
 ```
 
-The default hosts are `dev.api-proxy.example.com`,
-`staging.api-proxy.example.com`, and `api-proxy.example.com`. The generated
-ConfigMap name hash triggers pod-template updates when its values change.
-Explicit Secret updates do not automatically restart existing pods.
+The default hosts are `staging.api-proxy.example.com` and
+`api-proxy.example.com`. The `dev` overlay has no Ingress — see "Local dev on
+minikube" below. The generated ConfigMap name hash triggers pod-template
+updates when its values change. Explicit Secret updates do not automatically
+restart existing pods.
+
+## Local dev on minikube
+
+The `dev` overlay is designed to run on a local minikube cluster and expose the
+proxy directly on the node's NodePort — no ingress controller, DNS, or TLS
+setup required.
+
+```sh
+# Start minikube if it is not already running
+minikube start
+
+# Build the image directly into minikube's container runtime
+eval $(minikube docker-env)
+docker build -f Containerfile -t github-api-proxy:dev .
+# Alternative when not using docker-env:
+#   docker build -f Containerfile -t github-api-proxy:dev .
+#   minikube image load github-api-proxy:dev
+
+# Fill in real values in k8s/overlays/dev/secrets-patch.yaml
+#   rotator-mongodb-credentials.password (MongoDB root password)
+#   github-api-credentials.token         (GitHub token, or empty for anon)
+
+# Render to sanity-check — Ingress should be absent, github-api-proxy Service
+# should be NodePort with nodePort: 30300
+kubectl kustomize k8s/overlays/dev
+
+# Apply
+kubectl apply -k k8s/overlays/dev
+
+# Bootstrap the rotator so the proxy stops CrashLoopBackOff-ing
+kubectl -n github-api-proxy-dev create job --from=cronjob/credentials-rotator bootstrap
+
+# Hit the proxy from the host
+curl "http://$(minikube ip):30300/github/repos/anthropics/anthropic-sdk-python" -i
+# Cross-driver-safe alternative (opens a localhost tunnel on some drivers):
+#   minikube service -n github-api-proxy-dev github-api-proxy --url
+```
+
+A second identical `curl` within `CACHE_TTL_SECONDS` (60s in dev) returns
+`X-Cache: HIT`.
