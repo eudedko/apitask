@@ -45,7 +45,9 @@ spec:
                 - "27017"
                 - --quiet
                 - --eval
-                - quit(db.hello().ok ? 0 : 2)
+                # Quote this expression: the `: ` in an unquoted YAML scalar
+                # is interpreted as a mapping delimiter by the API server.
+                - "quit(db.hello().ok ? 0 : 2)"
             initialDelaySeconds: 10
             periodSeconds: 10
           livenessProbe:
