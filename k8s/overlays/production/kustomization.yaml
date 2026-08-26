@@ -18,9 +18,9 @@ configMapGenerator:
     literals:
       - NODE_ENV=production
       - CACHE_TTL_SECONDS=300
+      - MONGO_DATABASE=github_proxy
 
 patches:
-  - path: environment-patch.yaml
   - path: secrets-patch.yaml
   - path: capacity-patch.yaml
   - target:
@@ -36,3 +36,15 @@ patches:
       - op: replace
         path: /spec/tls/0/secretName
         value: github-api-proxy-tls-production
+  - target:
+      group: mongodbcommunity.mongodb.com
+      version: v1
+      kind: MongoDBCommunity
+      name: mongodb
+    patch: |-
+      - op: replace
+        path: /spec/users/0/roles/0/db
+        value: github_proxy
+      - op: replace
+        path: /spec/statefulSet/spec/volumeClaimTemplates/0/spec/resources/requests/storage
+        value: 500Mi

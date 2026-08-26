@@ -17,6 +17,8 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/component: proxy
+      annotations:
+        secret.reloader.stakater.com/reload: "database-credentials-connection"
     spec:
       containers:
         - name: proxy
@@ -32,27 +34,20 @@ spec:
           env:
             - name: PORT
               value: "3000"
-            - name: DB_USERNAME
+            - name: MONGO_URI
               valueFrom:
                 secretKeyRef:
-                  name: database-credentials
-                  key: username
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: database-credentials
-                  key: password
-            - name: MONGO_HOST
-              value: mongodb
-            - name: MONGO_PORT
-              value: "27017"
-            - name: MONGO_DATABASE
-              value: github_proxy
+                  name: database-credentials-connection
+                  key: connectionString.standard
             - name: GITHUB_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: github-api-credentials
                   key: token
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "5"]
           readinessProbe:
             httpGet:
               path: /
@@ -80,5 +75,7 @@ spec:
             readOnlyRootFilesystem: true
       securityContext:
         runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
         seccompProfile:
           type: RuntimeDefault

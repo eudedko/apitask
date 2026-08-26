@@ -15,12 +15,3 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: mongodb-data
-spec:
-  resources:
-    requests:
-      storage: 500Mi

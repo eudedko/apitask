@@ -18,9 +18,9 @@ configMapGenerator:
     literals:
       - NODE_ENV=production
       - CACHE_TTL_SECONDS=180
+      - MONGO_DATABASE=github_proxy_staging
 
 patches:
-  - path: environment-patch.yaml
   - path: secrets-patch.yaml
   - path: capacity-patch.yaml
   - target:
@@ -39,3 +39,15 @@ patches:
       - op: replace
         path: /metadata/annotations/cert-manager.io~1cluster-issuer
         value: letsencrypt-staging
+  - target:
+      group: mongodbcommunity.mongodb.com
+      version: v1
+      kind: MongoDBCommunity
+      name: mongodb
+    patch: |-
+      - op: replace
+        path: /spec/users/0/roles/0/db
+        value: github_proxy_staging
+      - op: replace
+        path: /spec/statefulSet/spec/volumeClaimTemplates/0/spec/resources/requests/storage
+        value: 200Mi

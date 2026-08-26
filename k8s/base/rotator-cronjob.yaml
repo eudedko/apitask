@@ -11,7 +11,7 @@ spec:
   jobTemplate:
     spec:
       backoffLimit: 0
-      activeDeadlineSeconds: 240
+      activeDeadlineSeconds: 60
       template:
         metadata:
           labels:
@@ -28,9 +28,16 @@ spec:
               type: RuntimeDefault
           containers:
             - name: rotator
-              image: mongodb/mongodb-community-server:8.0-ubi9
+              image: alpine/k8s:1.34.9
               imagePullPolicy: IfNotPresent
-              command: [bash, /scripts/rotate.sh]
+              command:
+                - bash
+                - -c
+                - |
+                  set -euo pipefail
+                  new_pass=$(head -c 24 /dev/urandom | base64 | tr -d '/+=' | cut -c1-32)
+                  kubectl patch secret "$SECRET_NAME" --namespace "$NAMESPACE" \
+                    --type merge -p "{\"stringData\":{\"password\":\"$new_pass\"}}"
               env:
                 - name: NAMESPACE
                   valueFrom:
@@ -38,48 +45,15 @@ spec:
                       fieldPath: metadata.namespace
                 - name: SECRET_NAME
                   value: database-credentials
-                - name: DEPLOYMENT_NAME
-                  value: github-api-proxy
-                - name: MONGO_HOST
-                  value: mongodb
-                - name: MONGO_USER
-                  valueFrom:
-                    secretKeyRef:
-                      name: rotator-mongodb-credentials
-                      key: username
-                - name: MONGO_PASS
-                  valueFrom:
-                    secretKeyRef:
-                      name: rotator-mongodb-credentials
-                      key: password
-                - name: DB_USERNAME
-                  valueFrom:
-                    secretKeyRef:
-                      name: database-credentials
-                      key: username
-                - name: DB_PASSWORD
-                  valueFrom:
-                    secretKeyRef:
-                      name: database-credentials
-                      key: password
-              volumeMounts:
-                - name: script
-                  mountPath: /scripts
-                  readOnly: true
               resources:
                 requests:
                   cpu: 20m
-                  memory: 128Mi
+                  memory: 32Mi
                 limits:
-                  cpu: 200m
-                  memory: 256Mi
+                  cpu: 100m
+                  memory: 64Mi
               securityContext:
                 allowPrivilegeEscalation: false
                 capabilities:
                   drop: [ALL]
                 readOnlyRootFilesystem: false
-          volumes:
-            - name: script
-              configMap:
-                name: rotator-script
-                defaultMode: 0555

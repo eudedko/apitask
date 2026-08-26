@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb-kubernetes-operator
+spec:
+  template:
+    spec:
+      containers:
+        - name: mongodb-kubernetes-operator
+          env:
+            - name: WATCH_NAMESPACE
+              value: "github-api-proxy-dev,github-api-proxy-staging,github-api-proxy-production"
+              valueFrom: null

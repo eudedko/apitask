@@ -1,0 +1,41 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mongodb-kubernetes-operator-workload
+rules:
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+  - apiGroups: [""]
+    resources: ["secrets", "configmaps"]
+    verbs: ["get", "list", "create", "update", "delete", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["statefulsets", "deployments"]
+    verbs: ["create", "get", "list", "watch", "delete", "update"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "delete", "deletecollection"]
+  - apiGroups: ["mongodbcommunity.mongodb.com"]
+    resources: ["mongodbcommunity", "mongodbcommunity/status", "mongodbcommunity/spec", "mongodbcommunity/finalizers"]
+    verbs: ["*"]
+  - apiGroups: ["mongodb.com"]
+    resources:
+      - mongodb
+      - mongodb/finalizers
+      - mongodbusers
+      - mongodbusers/finalizers
+      - opsmanagers
+      - opsmanagers/finalizers
+      - mongodbmulticluster
+      - mongodbmulticluster/finalizers
+      - mongodbsearch
+      - mongodbsearch/finalizers
+      - mongodb/status
+      - mongodbusers/status
+      - opsmanagers/status
+      - mongodbmulticluster/status
+      - mongodbsearch/status
+    verbs: ["*"]
+  - apiGroups: ["ai.mongodb.com"]
+    resources: ["voyageais", "voyageais/finalizers", "voyageais/status"]
+    verbs: ["*"]

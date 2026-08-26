@@ -4,16 +4,12 @@ kind: Kustomization
 resources:
   - app-deployment.yaml
   - app-service.yaml
-  - database-credentials-secret.yaml
   - github-api-credentials-secret.yaml
   - ingress.yaml
-  - mongodb-deployment.yaml
-  - mongodb-pvc.yaml
-  - mongodb-service.yaml
-  - mongodb-network-policy.yaml
-  - rotator-mongodb-credentials-secret.yaml
+  - mongodb-community.yaml
+  - mongodb-appdb-rbac.yaml
+  - database-credentials-secret.yaml
   - rotator-rbac.yaml
-  - rotator-script-configmap.yaml
   - rotator-cronjob.yaml
 
 configMapGenerator:
@@ -21,6 +17,7 @@ configMapGenerator:
     literals:
       - NODE_ENV=production
       - CACHE_TTL_SECONDS=300
+      - MONGO_DATABASE=github_proxy
 
 labels:
   - pairs:

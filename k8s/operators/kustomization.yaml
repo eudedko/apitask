@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Installs MongoDB Controllers for Kubernetes (MCK) and stakater/Reloader,
+# cluster-wide, with no Helm chart. Apply once per cluster, before any
+# overlay under k8s/overlays — the MongoDBCommunity CR in k8s/base depends
+# on the CRD installed here, and kubectl apply does not wait for a
+# just-applied CRD to become Established before validating instances of it.
+#
+#   kubectl apply -k k8s/operators
+#   kubectl wait --for=condition=established crd/mongodbcommunity.mongodbcommunity.mongodb.com
+#   kubectl apply -k k8s/overlays/dev
+
+resources:
+  - namespace.yaml
+  - https://raw.githubusercontent.com/mongodb/mongodb-kubernetes/1.11.0/public/crds.yaml
+  - https://raw.githubusercontent.com/mongodb/mongodb-kubernetes/1.11.0/public/mongodb-kubernetes.yaml
+  - https://raw.githubusercontent.com/stakater/Reloader/v1.4.21/deployments/kubernetes/reloader.yaml
+  - workload-clusterrole.yaml
+  - workload-clusterrolebinding.yaml
+
+patches:
+  - path: watch-namespace-patch.yaml
+    target:
+      kind: Deployment
+      name: mongodb-kubernetes-operator
