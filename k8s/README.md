@@ -10,7 +10,7 @@ The `base` directory defines the proxy Deployment and Service, a
 `MongoDBCommunity` custom resource (reconciled by MCK into a single-member
 replica set with its own PVC and headless Service), and an Ingress. It also
 ships a drastically simplified `credentials-rotator` CronJob that rotates the
-`database-credentials` Secret every minute (see "Credential rotation"
+`database-credentials` Secret every 2 minutes (see "Credential rotation"
 below). The overlays customize namespaces, images, application ports,
 database names, cache TTLs, proxy replica counts, storage, hosts, and Secret
 values. MongoDB uses port `27017` in every environment.
@@ -37,7 +37,7 @@ is never declared as a manifest — MCK creates it on first reconcile and owns
 it from then on.
 
 The `credentials-rotator` CronJob's only job is to generate a new random
-password and patch it into `database-credentials` every minute — it
+password and patch it into `database-credentials` every 2 minutes — it
 never talks to MongoDB or the Kubernetes Deployment API directly, so its
 RBAC is `get`+`patch` on that one Secret (`kubectl patch` needs `get` too).
 MCK picks up the change, re-derives SCRAM credentials, and rewrites
@@ -79,7 +79,7 @@ after `kubectl apply -k ...`.
 3. Replace every `replace-with-*` value in the selected overlay's
    `secrets-patch.yaml`. The overlay only needs to patch
    `database-credentials` (the MongoDB app-user password, rotated every
-   minute) and `github-api-credentials` (the GitHub token);
+   2 minutes) and `github-api-credentials` (the GitHub token);
    `database-credentials-connection` is populated entirely by MCK from the
    seed and never edited directly. Committed placeholder values are not
    suitable for a real cluster; use an external secret-management workflow

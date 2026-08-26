@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: credentials-rotator
 spec:
-  schedule: "*/1 * * * *"
+  schedule: "*/2 * * * *"
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 30
   successfulJobsHistoryLimit: 1
