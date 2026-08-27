@@ -6,8 +6,12 @@ resources:
   - app-service.yaml
   - github-api-credentials-secret.yaml
   - ingress.yaml
-  - mongodb-community.yaml
-  - mongodb-appdb-rbac.yaml
+  - mongodb-statefulset.yaml
+  - mongodb-service.yaml
+  - mongodb-client-service.yaml
+  - mongodb-root-credentials-secret.yaml
+  - mongodb-keyfile-secret.yaml
+  - mongodb-bootstrap-configmap.yaml
   - database-credentials-secret.yaml
   - rotator-rbac.yaml
   - rotator-cronjob.yaml
@@ -18,6 +22,10 @@ configMapGenerator:
       - NODE_ENV=production
       - CACHE_TTL_SECONDS=300
       - MONGO_DATABASE=github_proxy
+      - MONGO_HOST=mongodb
+      - DB_USERNAME=github-proxy
+      - MONGO_REPLICA_SET=rs0
+      - MONGO_REPLICA_MEMBERS=1
 
 labels:
   - pairs:

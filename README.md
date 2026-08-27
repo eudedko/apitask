@@ -16,10 +16,10 @@ zero-downtime rollovers.
 | Docker Compose runs the stack | `compose.yml` |
 | Kubernetes + Kustomize (dev/staging/prod) | `k8s/base` + `k8s/overlays/{dev,staging,production}` |
 | Layered config (ports, URLs, TTL, replicas, hosts, DB name) | Overlay patches + `configMapGenerator` |
-| Ingress + in-cluster Services | `k8s/base/ingress.yaml`, `app-service.yaml`, `mongodb-service.yaml`, `mongodb-network-policy.yaml` |
+| Ingress + in-cluster Services | `k8s/base/ingress.yaml`, `app-service.yaml`, `mongodb-service.yaml` (headless), `mongodb-client-service.yaml` (ClusterIP, what the app/rotator connect through) — `dev` swaps the Ingress for a NodePort Service, see [Ingress vs. NodePort in `dev`](#ingress-vs-nodeport-in-dev) |
 | Secret for exposed API (GitHub token) | `github-api-credentials-secret.yaml` → env in `app-deployment.yaml` |
 | Secret for DB credentials, mounted in pods | `database-credentials-secret.yaml` → env in `app-deployment.yaml` and MongoDB init |
-| CronJob rotating credentials every minute, zero-downtime | `rotator-cronjob.yaml` + `rotator-script-configmap.yaml` + `rotator-rbac.yaml` (details in [k8s/README.md](k8s/README.md)) |
+| CronJob rotating credentials every minute, zero-downtime | `rotator-cronjob.yaml` (rotation script is inline) + `rotator-rbac.yaml` (details in [k8s/README.md](k8s/README.md)) |
 
 ## Run with Docker Compose
 
@@ -55,17 +55,46 @@ Overlays differ in namespace, image tag, replica count, host, cache TTL,
 storage size, and Secret values. See [k8s/README.md](k8s/README.md) for the
 full workflow and the credential-rotation design.
 
+### Ingress vs. NodePort in `dev`
+
+`k8s/base/ingress.yaml` defines an Ingress for the proxy Service, and
+`staging`/`production` keep it as-is. The `dev` overlay deletes that Ingress
+(`ingress-delete-patch.yaml`) and instead exposes the proxy directly via a
+`NodePort` Service on port `30300` (`service-patch.yaml`). This is a deliberate
+tradeoff for local minikube use, not an oversight:
+
+- **NodePort in dev (current choice):** no ingress controller, DNS, or TLS
+  setup needed — `minikube ip`+`:30300` is reachable immediately after
+  `kubectl apply -k k8s/overlays/dev`. The cost is that dev doesn't exercise
+  the same Ingress path (host routing, TLS termination, cert-manager) that
+  staging/production use, so an Ingress-specific misconfiguration wouldn't be
+  caught until staging.
+- **Ingress in dev (alternative):** would exercise the same code path as
+  staging/production (via `minikube addons enable ingress`), at the cost of
+  extra one-time cluster setup and an Ingress host/DNS entry to manage
+  locally for what is otherwise a throwaway dev cluster.
+
+Given `dev` is meant for a quick, disposable local loop, NodePort was kept and
+the Ingress path is left to be validated in `staging`.
+
 ## Zero-downtime credential rotation (summary)
 
 Every minute the `credentials-rotator` CronJob:
 
-1. Creates a new versioned MongoDB user `github-proxy-vN` (`readWrite` on the app DB).
-2. Patches the `database-credentials` Secret with the new username/password.
-3. Triggers a rolling restart of the proxy Deployment.
-4. Drops the user from two cycles ago — so old and new pods both have a valid user during the rollout.
+1. An `initContainer` generates a new random password and runs
+   `db.changeUserPassword()` against the existing `github-proxy` MongoDB user,
+   authenticating as root via the `mongodb-root-credentials` Secret.
+2. The main container patches that same password into the
+   `database-credentials` Secret via `kubectl patch secret`.
+3. `stakater/Reloader` detects the Secret change and rolling-restarts the
+   proxy Deployment (`maxUnavailable: 0`), so no capacity is lost while pods
+   pick up the new password.
 
-The rotator itself uses a **separate**, unrotated `rotator-mongodb-credentials`
-Secret (MongoDB root) which also seeds `MONGO_INITDB_ROOT_*` on first boot.
+MongoDB's password is changed *before* the Secret is patched, so the Secret
+always reflects a password MongoDB already accepts. The rotator only ever
+rotates the single `github-proxy` app user — there is no versioned-user
+scheme. `mongodb-root-credentials` (MongoDB root) and `mongodb-keyfile`
+(replica-set internal auth) are separate, unrotated Secrets.
 
 ## Endpoints
 
@@ -79,7 +108,7 @@ Secret (MongoDB root) which also seeds `MONGO_INITDB_ROOT_*` on first boot.
 server.js              # the entire app
 Containerfile          # image build
 compose.yml            # local stack (app + MongoDB)
-k8s/base/              # Deployments, Services, Ingress, NetworkPolicy, rotator CronJob + RBAC
+k8s/base/              # Deployments, Services, Ingress, rotator CronJob + RBAC
 k8s/overlays/{dev,staging,production}/  # per-env patches
 k8s/README.md          # Kubernetes deploy + rotation details
 ```

@@ -1,0 +1,115 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongodb-bootstrap-scripts
+data:
+  bootstrap.sh: |
+    #!/bin/bash
+    set -uo pipefail
+
+    POD_ORDINAL="${POD_NAME##*-}"
+    SELF_HOST="${POD_NAME}.${MONGO_HEADLESS_HOST}:27017"
+
+    log() {
+      echo "[rs-bootstrap] $(date -u +%H:%M:%SZ) $*"
+    }
+
+    mongo_local() {
+      local js="$1"
+      local out lower_out
+      out=$(mongosh --quiet --host 127.0.0.1 --eval "$js" 2>&1)
+      local rc=$?
+      lower_out=$(printf '%s' "$out" | tr '[:upper:]' '[:lower:]')
+      case "$lower_out" in
+        *"requires authentication"*|*unauthorized*)
+          if [ $rc -ne 0 ]; then
+            out=$(mongosh --quiet --host 127.0.0.1 -u "$ROOT_USERNAME" -p "$ROOT_PASSWORD" --authenticationDatabase admin --eval "$js" 2>&1)
+            rc=$?
+          fi
+          ;;
+      esac
+      printf '%s\n' "$out"
+      return $rc
+    }
+
+    mongo_rs() {
+      local js="$1"
+      mongosh --quiet "mongodb://${MONGO_HEADLESS_HOST}:27017/admin?replicaSet=${MONGO_REPLICA_SET}" \
+        --username "$ROOT_USERNAME" --password "$ROOT_PASSWORD" --authenticationDatabase admin \
+        --eval "$js" 2>&1
+    }
+
+    log "waiting for local mongod"
+    until mongo_local "db.adminCommand('ping')" >/dev/null; do
+      sleep 3
+    done
+    log "mongod is reachable"
+
+    if [ "$POD_ORDINAL" = "0" ]; then
+      log "ensuring replica set is initiated"
+      until mongo_local "
+        try { rs.status(); }
+        catch (e) {
+          if (e.codeName === 'NotYetInitialized' || /no replset config/i.test(e.message)) {
+            rs.initiate({_id: '${MONGO_REPLICA_SET}', members: [{_id: 0, host: '${SELF_HOST}'}]});
+          } else {
+            throw e;
+          }
+        }
+      "; do
+        log "rs.initiate attempt failed, retrying"
+        sleep 3
+      done
+
+      log "waiting to become PRIMARY"
+      until [ "$(mongo_local 'db.hello().isWritablePrimary' | tail -1)" = "true" ]; do
+        sleep 2
+      done
+      log "this node is PRIMARY"
+
+      log "ensuring root user exists"
+      until mongo_local "
+        const adminDb = db.getSiblingDB('admin');
+        try {
+          adminDb.createUser({user: '${ROOT_USERNAME}', pwd: '${ROOT_PASSWORD}', roles: [{role: 'root', db: 'admin'}]});
+        } catch (e) {
+          if (!/already exists/i.test(e.message)) { throw e; }
+        }
+      "; do
+        sleep 3
+      done
+
+      log "ensuring app user exists"
+      until mongo_local "
+        const adminDb = db.getSiblingDB('admin');
+        try {
+          adminDb.createUser({user: '${APP_DB_USERNAME}', pwd: '${APP_DB_PASSWORD}', roles: [{role: 'readWrite', db: '${MONGO_DATABASE}'}]});
+        } catch (e) {
+          if (!/already exists/i.test(e.message)) { throw e; }
+        }
+      "; do
+        sleep 3
+      done
+      log "root and app users are ready"
+    fi
+
+    log "entering steady-state loop"
+    while true; do
+      if [ "$POD_ORDINAL" = "0" ] && [ "${MONGO_REPLICA_MEMBERS}" -gt 1 ]; then
+        for i in $(seq 1 $((MONGO_REPLICA_MEMBERS - 1))); do
+          peer="mongodb-${i}.${MONGO_HEADLESS_HOST}:27017"
+          if out=$(mongo_rs "
+            const members = rs.status().members.map(m => m.name);
+            if (!members.includes('${peer}')) {
+              rs.add('${peer}');
+              print('added ${peer}');
+            }
+          " 2>&1); then
+            [ -n "$out" ] && log "$out"
+          else
+            log "peer ${peer} not ready yet: $(printf '%s' "$out" | tail -1)"
+          fi
+        done
+      fi
+      sleep 30
+    done

@@ -13,6 +13,7 @@ const MONGO_DATABASE =
   process.env.MONGO_DATABASE || "github_proxy";
 const DB_USERNAME = process.env.DB_USERNAME;
 const DB_PASSWORD = process.env.DB_PASSWORD;
+const MONGO_REPLICA_SET = process.env.MONGO_REPLICA_SET;
 
 if (process.env.MONGO_PORT !== undefined) {
   const parsed = Number(process.env.MONGO_PORT);
@@ -53,11 +54,18 @@ function createMongoUri() {
         DB_PASSWORD
       )}@`
     : "";
-  const authentication = hasCredentials
-    ? "?authSource=admin"
-    : "";
 
-  return `mongodb://${credentials}${MONGO_HOST}:${MONGO_PORT}/${MONGO_DATABASE}${authentication}`;
+  const params = new URLSearchParams();
+  if (hasCredentials) {
+    params.set("authSource", "admin");
+  }
+  if (MONGO_REPLICA_SET) {
+    params.set("replicaSet", MONGO_REPLICA_SET);
+  }
+
+  const query = params.toString() ? `?${params.toString()}` : "";
+
+  return `mongodb://${credentials}${MONGO_HOST}:${MONGO_PORT}/${MONGO_DATABASE}${query}`;
 }
 
 function createCacheKey(url) {

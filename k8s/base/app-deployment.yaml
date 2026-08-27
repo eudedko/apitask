@@ -18,7 +18,7 @@ spec:
       labels:
         app.kubernetes.io/component: proxy
       annotations:
-        secret.reloader.stakater.com/reload: "database-credentials-connection"
+        secret.reloader.stakater.com/reload: "database-credentials"
     spec:
       containers:
         - name: proxy
@@ -34,11 +34,11 @@ spec:
           env:
             - name: PORT
               value: "3000"
-            - name: MONGO_URI
+            - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: database-credentials-connection
-                  key: connectionString.standard
+                  name: database-credentials
+                  key: password
             - name: GITHUB_TOKEN
               valueFrom:
                 secretKeyRef:

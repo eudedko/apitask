@@ -19,6 +19,7 @@ configMapGenerator:
       - NODE_ENV=production
       - CACHE_TTL_SECONDS=300
       - MONGO_DATABASE=github_proxy
+      - MONGO_REPLICA_MEMBERS=3
 
 patches:
   - path: secrets-patch.yaml
@@ -37,14 +38,12 @@ patches:
         path: /spec/tls/0/secretName
         value: github-api-proxy-tls-production
   - target:
-      group: mongodbcommunity.mongodb.com
-      version: v1
-      kind: MongoDBCommunity
+      kind: StatefulSet
       name: mongodb
     patch: |-
       - op: replace
-        path: /spec/users/0/roles/0/db
-        value: github_proxy
-      - op: replace
-        path: /spec/statefulSet/spec/volumeClaimTemplates/0/spec/resources/requests/storage
+        path: /spec/volumeClaimTemplates/0/spec/resources/requests/storage
         value: 500Mi
+      - op: replace
+        path: /spec/replicas
+        value: 3

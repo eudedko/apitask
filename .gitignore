@@ -145,3 +145,5 @@ vite.config.ts.timestamp-*
 # Rendered kustomize / manifest output
 /json
 k8s/**/rendered.yaml
+docs/codemie/analytics/**
+CLAUDE.md
