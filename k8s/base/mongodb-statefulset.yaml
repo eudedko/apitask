@@ -28,6 +28,7 @@ spec:
             - -c
             - |
               set -euo pipefail
+              rm -f /keyfile/key
               cp /keyfile-secret/key /keyfile/key
               chown 1000:1000 /keyfile/key
               chmod 0400 /keyfile/key
